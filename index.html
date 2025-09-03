@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heat Map</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            padding: 20px;
+            ;
+        }
+
+        .graph {
+            display: block;
+            margin: auto;
+            background-color: white;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+
+        .dot {
+            stroke: #000;
+            opacity: 0.8;
+        }
+
+        #tooltip {
+            color: white;
+        }
+
+        section {
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.0.0/d3.min.js"></script>
+    <script src="colors.js"></script>
+    <script>
+        var url = 'https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/global-temperature.json';
+
+        const data = d3.json(url)
+            .then(dataset => {
+                // ajustando os meses para o formato Date (0-11)
+                // assim o mes janeiro se torna 0 e dezembro 11 ao inves de 1 e 12
+                dataset.monthlyVariance.forEach(val => {
+                    val.month -= 1;
+                });
+
+                var w = 1000; // largura do gráfico
+                var h = 500; // altura do gráfico
+                var padding = 60;
+
+                var section = d3.select('body').append('section');
+
+                var heading = section.append('heading');
+                heading
+                    .append('h1')
+                    .attr('id', 'title')
+                    .text('Monthly Global Land-Surface Temperature');
+                heading
+                    .append('h3')
+                    .attr('id', 'description')
+                    .html(
+                        dataset.monthlyVariance[0].year +
+                        ' - ' +
+                        dataset.monthlyVariance[dataset.monthlyVariance.length - 1].year +
+                        ': base temperature ' +
+                        dataset.baseTemperature +
+                        '&#8451;'
+                    );
+
+                var scaleY = d3
+                    .scaleBand() // um tipo de scale para dados categóricos
+                    .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])// months 12 meses
+                    .range([0, h])
+
+                var yAxis = d3
+                    .axisLeft()
+                    .scale(scaleY) // qual escala usar
+                    .tickValues(scaleY.domain()) // valores que terão ticks
+                    .tickFormat((month) => { // formatação dos ticks
+                        var date = new Date(0);
+                        date.setUTCMonth(month);
+                        var format = d3.utcFormat('%B');
+                        return format(date);
+                    })
+                    .tickSize(10, 1); // tamanho das linhas q encontram os labes
+
+                var scaleX = d3
+                    .scaleBand() // um tipo de scale para dados categóricos
+                    .domain(dataset.monthlyVariance.map((val) => val.year)) // retorna um array com os anos do dataset
+                    .range([0, w]);
+
+                var xAxis = d3
+                    .axisBottom()
+                    .scale(scaleX)
+                    .tickFormat(d3.format('d')) // formatando os ticks para número inteiro
+                    .tickValues(scaleX.domain().filter((year) => year % 10 === 0)) // mostrando apenas os anos múltiplos de 10
+                    .tickSize(10, 1)
+
+
+
+                const svg =  // criando o conteiner svg onde ficará o gráfico
+                    section
+                        .append('svg')
+                        .attr('width', w)
+                        .attr('height', h)
+                        .attr('padding', padding)
+                        .attr('id', 'title');
+
+                svg.append('g') // criando o grupo para o eixo y
+                    .attr('class', 'y-axis') // classe para estilizar o eixo
+                    .attr('id', 'y-axis')
+                    .call(yAxis) // chamando o eixo
+                    .attr('transform', 'translate(' + (padding) + ',0 )')
+                    .attr('x', w)
+                    .attr('y', 0)
+                    ;
+
+                svg.append('g') // criando o grupo para o eixo x
+                    .attr('class', 'x-axis') // classe para estilizar o eixo
+                    .attr('id', 'x-axis')
+                    .call(xAxis) // chamando o eixo
+                    .attr('transform', 'translate(60, ' + (h - 20) + ')')
+                    .attr('y', 0)
+                    ;
+
+                var variance = dataset.monthlyVariance.map(function (val) {
+                    return val.variance;
+                });
+                var legendColors = colorbrewer.RdYlBu[11].reverse();
+
+                var minTemp = dataset.baseTemperature + Math.min(...variance);
+                var maxTemp = dataset.baseTemperature + Math.max(...variance);
+
+
+                var legendThreshold = d3
+                    .scaleThreshold()
+                    .domain(
+                        (function (min, max, count) {
+                            var array = [];
+                            var step = (max - min) / count;
+                            var base = min;
+                            for (var i = 1; i < count; i++) {
+                                array.push(base + i * step);
+                            }
+                            return array;
+                        })(minTemp, maxTemp, legendColors.length))
+                    .range(legendColors);
+
+
+                svg.append('g') // chamando o dados no container principal
+                    .selectAll('rect') // dados como retangulos
+                    .data(dataset.monthlyVariance) // passando os dados
+                    .enter() // depois daqui e so configuracao dos retangulos
+                    .append('rect')
+                    .attr('class', 'cell')
+                    .attr('x', d => scaleX(d.year)) // posicao x dos retangulos escalonada por scalex
+                    .attr('y', d => scaleY(d.month))// posicao y dos retangulos escalonada por scaley
+                    .attr('transform', 'translate(' + (padding + 1) + ', ' + -20 + ')')
+                    .attr('width', d => scaleX.bandwidth(d.year)) // largura dos retangulos
+                    .attr('height', d => scaleY.bandwidth(d.month))// comprimento dos retangulos
+                    .attr('fill', d => {
+                        return legendThreshold(dataset.baseTemperature + d.variance)
+                    })
+
+
+                // heading
+
+
+            })
+
+
+
+    </script>
+    <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+</body>
+
+</html>
