@@ -63,7 +63,12 @@
 
                 var w = 1000; // largura do gráfico
                 var h = 500; // altura do gráfico
-                var padding = 60;
+                var padding = {
+                    top: 22,
+                    right: 20,
+                    bottom: 0,
+                    left: 60
+                };
 
                 var section = d3.select('body').append('section');
 
@@ -114,30 +119,30 @@
                     .tickSize(10, 1)
 
 
-
                 const svg =  // criando o conteiner svg onde ficará o gráfico
                     section
                         .append('svg')
-                        .attr('width', w)
-                        .attr('height', h)
-                        .attr('padding', padding)
+                        .attr('width', w + padding.left + padding.right)
+                        .attr('height', h + padding.top + padding.bottom)
+                        // .attr('padding', padding)
                         .attr('id', 'title');
 
                 svg.append('g') // criando o grupo para o eixo y
                     .attr('class', 'y-axis') // classe para estilizar o eixo
                     .attr('id', 'y-axis')
                     .call(yAxis) // chamando o eixo
-                    .attr('transform', 'translate(' + (padding) + ',0 )')
-                    .attr('x', w)
-                    .attr('y', 0)
+                    .attr('transform', 'translate(' + padding.left + ', ' + 0 + ')')
+                    // .attr('transform', 'translate(' + (padding.left) + ',' + -padding.top + ')')
+                    // .attr('x', 350)
+                    // .attr('y', -40)
                     ;
 
                 svg.append('g') // criando o grupo para o eixo x
                     .attr('class', 'x-axis') // classe para estilizar o eixo
                     .attr('id', 'x-axis')
                     .call(xAxis) // chamando o eixo
-                    .attr('transform', 'translate(60, ' + (h - 20) + ')')
-                    .attr('y', 0)
+                    .attr('transform', 'translate(' + padding.left + ', ' + (h) + ')')
+                    // .attr('y', h)
                     ;
 
                 var variance = dataset.monthlyVariance.map(function (val) {
@@ -147,7 +152,6 @@
 
                 var minTemp = dataset.baseTemperature + Math.min(...variance);
                 var maxTemp = dataset.baseTemperature + Math.max(...variance);
-
 
                 var legendThreshold = d3
                     .scaleThreshold()
@@ -165,14 +169,22 @@
 
 
                 svg.append('g') // chamando o dados no container principal
+                    .attr('class', 'map')
+                    .attr('width', w + padding.left + padding.right)
+                    .attr('height', h + padding.top + padding.bottom)
+                    .attr('transform', 'translate(' + padding.left + ',0)')
+                    // .attr('transform', 'translate(' + (padding.left) + ',' + padding.top + ' )')
                     .selectAll('rect') // dados como retangulos
                     .data(dataset.monthlyVariance) // passando os dados
                     .enter() // depois daqui e so configuracao dos retangulos
                     .append('rect')
                     .attr('class', 'cell')
+                    .attr('data-month', d => d.month)
+                    .attr('data-year', d => d.year)
+                    .attr('data-temp', d => data.baseTemperature + d.variance)
                     .attr('x', d => scaleX(d.year)) // posicao x dos retangulos escalonada por scalex
                     .attr('y', d => scaleY(d.month))// posicao y dos retangulos escalonada por scaley
-                    .attr('transform', 'translate(' + (padding + 1) + ', ' + -20 + ')')
+                    // .attr('transform', 'translate(' + (padding) + ', ' + -20 + ')')
                     .attr('width', d => scaleX.bandwidth(d.year)) // largura dos retangulos
                     .attr('height', d => scaleY.bandwidth(d.month))// comprimento dos retangulos
                     .attr('fill', d => {
